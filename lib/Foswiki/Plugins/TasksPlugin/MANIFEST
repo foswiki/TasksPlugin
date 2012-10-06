@@ -1,0 +1,6 @@
+!noci
+data/System/TasksPlugin.txt 0644 Documentation page
+data/System/VarEXAMPLETAG.txt 0644 Tag documentation
+data/Sandbox/PluginTestTasksPlugin.txt 0644 Examples
+lib/Foswiki/Plugins/TasksPlugin.pm 0444 Perl module
+lib/Foswiki/Plugins/TasksPlugin/Config.spec 0444 Configuration

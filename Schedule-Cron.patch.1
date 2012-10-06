@@ -1,0 +1,382 @@
+--- /usr/lib/perl5/site_perl/5.8.8/Schedule/Cron.pm.1.01_1	2011-05-24 08:12:53.000000000 -0400
++++ /usr/lib/perl5/site_perl/5.8.8/Schedule/Cron.pm	2011-05-29 14:43:17.000000000 -0400
+@@ -77,11 +77,11 @@
+   };
+   $HAS_POSIX = $@ ? 0 : 1;
+ }
+ 
+ 
+-$VERSION = "1.01_1";
++$VERSION = "1.01_2";
+ 
+ our $DEBUG = 0;
+ my %STARTEDCHILD = ();
+ 
+ my @WDAYS = qw(
+@@ -142,15 +142,18 @@
+ # process in order to avoid event handlers modifying this
+ # global hash which can lead to memory errors.
+ # See RT #55741 for more details on this.
+ # This method is called in strategic places.
+ sub _cleanup_process_list {
++    my( $self, $cfg ) = @_;
++
+     # Cleanup processes even on those systems, where the SIGCHLD is not 
+     # propagated. Only do this for POSIX, otherwise this call would block 
+     # until all child processes would have been finished.
+     # See RT #56926 for more details.
+-    &REAPER() if $HAS_POSIX;
++    # Do not cleanup if nofork because jobs that fork will do their own reaping.
++    &REAPER() if $HAS_POSIX && !$cfg->{nofork};
+ 
+     # Delete entries from this global hash only from within the main
+     # thread/process. Hence, this method must not be called from within 
+     # a signalhandler    
+     for my $k (keys %STARTEDCHILD) {
+@@ -194,10 +197,15 @@
+ different time. This behaviour is fundamentally different to the 'fork' mode,
+ where each jobs gets its own process and hence a B<copy> of the process space,
+ independent of each other job and the main process. This is due to the nature
+ of the  C<fork> system call. 
+ 
++=item nostatus =>  1
++
++Do not update status in $0.  Set this if you don't want ps to reveal the internals
++of your application, including job argument lists.  Default is 0 (update status).
++
+ =item skip => 1
+ 
+ Skip any pending jobs whose time has passed. This option is only useful in
+ combination with C<nofork> where a job might block the execution of the
+ following jobs for quite some time. By default, any pending job is executed
+@@ -244,17 +252,30 @@
+       $logger->log($DBG_MAP->{$level},$msg);
+    }
+   
+    my $cron = new Schedule::Cron(.... , log => $log_method);
+ 
++=item loglevel => <-1,0,1,2>
++
++Restricts logging to the specified severity level or below.  Use 0 to have
++all messages generated; 1 for only warnings and errors; and 2 for errors only.
++Default is -1 (all messages).  A loglevel of -1 (debug) will include job
++argument lists (also in $0) in the level 0 job start message.  You may have
++security concerns with this; unless you are debugging, use 0 or higher.
++
++Although you can filter in your log routine, generating the messages can be
++expensive, for example if you pass arguments pointing to large hashes.  Specifying
++a loglevel avoids formatting data that your routine would discard.
++
+ =item processprefix => <name>
+ 
+ Cron::Schedule sets the process' name (i.e. C<$0>) to contain some informative
+ messages like when the next job executes or with which arguments a job is
+ called. By default, the prefix for this labels is C<Schedule::Cron>. With this
+ option you can set it to something different. You can e.g. use C<$0> to include
+-the original process name.
++the original process name.  You can inhibit this with C<nostatus>, and prevent 
++the argument display by setting C<loglevel> to zero or higher.
+ 
+ =back
+ 
+ =cut
+ 
+@@ -517,11 +538,11 @@
+         $args = $cfg->{arguments} || $cfg->{args} || [];
+         if ($cfg->{eval} && $cfg) 
+         {
+             die "You have to provide a simple scalar if using eval" if (ref($args));
+             my $orig_args = $args;
+-            dbg "Evaled args ",Dumper($args);
++            dbg "Evaled args ",Dumper($args) if $DEBUG;
+             $args = [ eval $args ];
+             die "Cannot evaluate args (\"$orig_args\")"
+               if $@;
+         }
+     } 
+@@ -719,11 +740,11 @@
+ 
+ If running in daemon mode, name the optional file, in which the process id of
+ the scheduler process should be written. By default, no PID File will be
+ created.
+ 
+-=item nofork, skip, catch, log
++=item nofork, skip, catch, log, loglevel, nostatus
+ 
+ See C<new()> for a description of these configuration parameters, which can be
+ provided here as well. Note, that the options given here overrides those of the
+ constructor.
+ 
+@@ -747,62 +768,71 @@
+     my $self = shift;
+     my $cfg = ref($_[0]) eq "HASH" ? $_[0] : {  @_ };
+     $cfg = { %{$self->{cfg}}, %$cfg }; # Merge in global config;
+ 
+     my $log = $cfg->{log};
++    my $loglevel = $cfg->{loglevel};
++    $loglevel = -1 unless defined $loglevel;
+ 
+     $self->_build_initial_queue;
+     delete $self->{entries_changed};
+     die "Nothing in schedule queue" unless @{$self->{queue}};
+     
+     # Install reaper now.
+-    my $old_child_handler = $SIG{'CHLD'};
+-    $SIG{'CHLD'} = sub {
+-        &REAPER();
+-        if ($old_child_handler && ref $old_child_handler eq 'CODE')
+-        {
+-            &$old_child_handler();
+-        }
+-    };
++    unless ($cfg->{nofork}) {
++	my $old_child_handler = $SIG{'CHLD'};
++	$SIG{'CHLD'} = sub {
++	    &REAPER();
++	    if ($old_child_handler && ref $old_child_handler eq 'CODE')
++	      {
++		  &$old_child_handler();
++	      }
++	};
++    }
+ 
+     my $mainloop = sub 
+     {
+         while (42) 
+         {
++	    unless( @{$self->{queue}} ) { # Queue length
++		# Last job deleted itself, or we were run with no entries.
++		# We can't return, so throw an exception - perhaps somone will catch.
++		die "No more jobs to run\n";
++	    }
+             my ($index,$time) = @{shift @{$self->{queue}}};
+             my $now = time;
+             my $sleep = 0;
+             if ($time < $now)
+             {
+                 if ($cfg->{skip})
+                 {
+                     $log->(0,"Schedule::Cron - Skipping job $index")
+-                      if $log;
++                      if $log && $loglevel <= 0;
+                     $self->_update_queue($index);
+                     next;
+                 }
+                 # At least a safety airbag
+                 $sleep = 1;
+             }
+             else
+             {
+                 $sleep = $time - $now;
+             }
+-            $0 = $self->_get_process_prefix()." MainLoop - next: ".scalar(localtime($time));
++            $0 = $self->_get_process_prefix()." MainLoop - next: ".scalar(localtime($time)) unless $cfg->{nostatus};
+             if (!$time) {
+                 die "Internal: No time found, self: ",$self->{queue},"\n" unless $time;
+             }
+ 
+-            dbg "R: sleep = $sleep | ",scalar(localtime($time))," (",scalar(localtime($now)),")";
++            dbg "R: sleep = $sleep | ",scalar(localtime($time))," (",scalar(localtime($now)),")" if $DEBUG;
+             while ($sleep > 0) 
+             {
+                 sleep($sleep);
+                 $sleep = $time - time;
+             }
+ 
+             $self->_execute($index,$cfg);
+-            $self->_cleanup_process_list;
++            $self->_cleanup_process_list($cfg);
+ 
+             if ($self->{entries_changed}) {
+                dbg "rebuilding queue";
+                $self->_build_initial_queue;
+                delete $self->{entries_changed};
+@@ -867,11 +897,11 @@
+             {
+                 &POSIX::setsid() || die "Can't start a new session: $!";
+             }
+             open STDERR, '>&STDOUT' or die "Can't dup stdout: $!";
+             
+-            $0 = $self->_get_process_prefix()." MainLoop";
++            $0 = $self->_get_process_prefix()." MainLoop" unless $cfg->{nostatus};
+             &$mainloop();
+         }
+     } 
+     else 
+     {
+@@ -1029,11 +1059,11 @@
+       $expanded[4] = [ '*' ];
+       my $t1 = $self->_calc_time($now,\@expanded);
+       $expanded[4] = \@bak;
+       $expanded[2] = [ '*' ];
+       my $t2 = $self->_calc_time($now,\@expanded);
+-      dbg "MDay : ",scalar(localtime($t1))," -- WDay : ",scalar(localtime($t2));
++      dbg "MDay : ",scalar(localtime($t1))," -- WDay : ",scalar(localtime($t2)) if $DEBUG;
+       return $t1 < $t2 ? $t1 : $t2;
+   } 
+   else 
+   {
+       # No conflicts possible:
+@@ -1080,17 +1110,19 @@
+ 
+   my $pid;
+ 
+ 
+   my $log = $cfg->{log};
++  my $loglevel = $cfg->{loglevel};
++  $loglevel = -1 unless defined $loglevel;
+ 
+   unless ($cfg->{nofork})
+   {
+       if ($pid = fork) 
+       {
+           # Parent
+-          $log->(0,"Schedule::Cron - Forking child PID $pid") if $log;
++          $log->(0,"Schedule::Cron - Forking child PID $pid") if $log && $loglevel <= 0;
+           # Register PID
+           $STARTEDCHILD{$pid} = 1;
+           return;
+       } 
+   }
+@@ -1106,16 +1138,17 @@
+   {
+       push @args,@$args;
+   }
+ 
+ 
+-  my $args_label = @args ? "with (".join(",",$self->_format_args(@args)).")" : "";
+-  $0 = $self->_get_process_prefix()." Dispatched with $args_label"
+-    unless $cfg->{nofork};
+-  $log->(0,"Schedule::Cron - Starting job $index $args_label")
+-    if $log;
+-
++  if ($log && $loglevel <= 0 || !$cfg->{nofork} && !$cfg->{nostatus}) {
++      my $args_label = (@args && $loglevel <= -1) ? " with (".join(",",$self->_format_args(@args)).")" : "";
++      $0 = $self->_get_process_prefix()." Dispatched job $index$args_label"
++	unless $cfg->{nofork} || $cfg->{nostatus};
++      $log->(0,"Schedule::Cron - Starting job $index$args_label")
++	if $log && $loglevel <= 0;
++  }
+   my $dispatch_result;
+   if ($cfg->{catch})
+   {
+       # Evaluate dispatcher
+       eval
+@@ -1123,11 +1156,11 @@
+           $dispatch_result = &$dispatch(@args);
+       };
+       if ($@)
+       {
+           $log->(2,"Schedule::Cron - Error within job $index: $@")
+-            if $log;
++            if $log && $loglevel <= 2;
+       }
+   }
+   else
+   {
+       # Let dispatcher die if needed.
+@@ -1142,18 +1175,19 @@
+               &$job($dispatch_result,@args);
+           };
+           if ($@)
+           {
+               $log->(2,"Schedule::Cron - Error while calling after_job callback with retval = $dispatch_result: $@")
+-                if $log;
++                if $log && $loglevel <= 2;
+           }
+       } else {
+-          $log->(2,"Schedule::Cron - Invalid after_job callback, it's not a code ref (but ",$job,")");
++          $log->(2,"Schedule::Cron - Invalid after_job callback, it's not a code ref (but ",$job,")")
++	    if $log && $loglevel <= 2;
+       }
+   }
+ 
+-  $log->(0,"Schedule::Cron - Finished job $index") if $log;
++  $log->(0,"Schedule::Cron - Finished job $index") if $log && $loglevel <= 0;
+   exit unless $cfg->{nofork};
+ }
+ 
+ # Udate the scheduler queue with a new entry
+ sub _update_queue 
+@@ -1172,11 +1206,11 @@
+         while ($new_time < $now) {
+             $new_time += 3600;
+         }
+     }
+ 
+-    dbg "Updating Queue: ",scalar(localtime($new_time));
++    dbg "Updating Queue: ",scalar(localtime($new_time)) if $DEBUG;
+     $self->{queue} = [ sort { $a->[1] <=> $b->[1] } @{$self->{queue}},[$index,$new_time] ];
+     #  dbg "Queue now: ",Dumper($self->{queue});
+ }
+ 
+ 
+@@ -1206,11 +1240,11 @@
+     # dbg Dumper($expanded);
+ 
+     # Airbag...
+     while ($dest_year <= $now_year + 1) 
+     { 
+-        dbg "Parsing $dest_hour:$dest_min:$dest_sec $dest_year/$dest_mon/$dest_mday";
++        dbg "Parsing $dest_hour:$dest_min:$dest_sec $dest_year/$dest_mon/$dest_mday" if $DEBUG;
+         
+         # Check month:
+         if ($expanded->[3]->[0] ne '*') 
+         {
+             unless (defined ($dest_mon = $self->_get_nearest($dest_mon,$expanded->[3]))) 
+@@ -1237,11 +1271,11 @@
+                     if ($dest_mon > 12) 
+                     {
+                         $dest_mon = 1;
+                         $dest_year++;
+                     }
+-                    dbg "Backtrack mday: $dest_mday/$dest_mon/$dest_year";
++                    dbg "Backtrack mday: $dest_mday/$dest_mon/$dest_year" if $DEBUG;
+                     next;
+                 }
+             }
+         } 
+         else 
+@@ -1262,13 +1296,13 @@
+             ($mon,$mday,$year) =  
+               (localtime(parsedate("$WDAYS[$dest_wday]",PREFER_FUTURE=>1,NOW=>$t-1)))[4,3,5]; 
+             $mon++;
+             $year += 1900;
+             
+-            dbg "Calculated $mday/$mon/$year for weekday ",$WDAYS[$dest_wday];
++            dbg "Calculated $mday/$mon/$year for weekday ",$WDAYS[$dest_wday] if $DEBUG;
+             if ($mon != $dest_mon || $year != $dest_year) {
+-                dbg "backtracking";
++                dbg "backtracking" if $DEBUG;
+                 $dest_mon = $mon;
+                 $dest_year = $year;
+                 $dest_mday = 1;
+                 $dest_wday = (localtime(parsedate(sprintf("%4.4d/%2.2d/%2.2d",
+                                                           $dest_year,$dest_mon,$dest_mday))))[6];
+@@ -1382,11 +1416,11 @@
+         }
+         
+         # We did it !!
+         my $date = sprintf("%2.2d:%2.2d:%2.2d %4.4d/%2.2d/%2.2d",
+                            $dest_hour,$dest_min,$dest_sec,$dest_year,$dest_mon,$dest_mday);
+-        dbg "Next execution time: $date ",$WDAYS[$dest_wday];
++        dbg "Next execution time: $date ",$WDAYS[$dest_wday] if $DEBUG;
+         my $result = parsedate($date, VALIDATE => 1);
+         # Check for a valid date
+         if ($result)
+         {
+             # Valid date... return it!
+@@ -1449,10 +1483,13 @@
+     return $prefix;
+ }
+ 
+ # our very own debugging routine
+ # ('guess everybody has its own style ;-)
++# Callers check $DEBUG on the critical path to save the computes
++# used to produce expensive arguments.  Omitting those would be
++# functionally correct, but rather wasteful.
+ sub dbg  
+ {
+   if ($DEBUG) 
+   {
+       my $args = join('',@_) || "";

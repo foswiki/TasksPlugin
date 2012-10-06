@@ -1,0 +1,396 @@
+%META:TOPICINFO{author="X509_2fC_3dUS_2fST_3dMassachusetts_2fL_3dSouthborough_2fO_3dlitts_2enet_2fOU_3dLitt_20family_2fOU_3dNetwork_20Administration_2fCN_3dTimothe_20Litt_2femailAddress_3dtimothe_40litts_2enet" date="1306815282" format="1.1" reprev="1.4" version="1.4"}%
+---+ Periodic Tasks Framework
+
+%TOC{depth="6"}%
+
+TWiki uses periodically scheduled tasks to automate maintenance activities such as removing stale files, cleaning up stale topic locks and (potentially) sending e-mail. This is a (prototype of) a new feature.
+
+This topic describes how the framework operates and is used from both an administrator and a developer's point of view.
+
+With most applications, and previous versions of TWiki, periodic maintenance task are schedule with the system _cron_ utility (or the equivalent under other operating systems). _cron_ provides a time specification syntax that is widely-used, if somwhat cryptic, and runs any system command at the specified time(s). Maintaining _crontab_ entries is error-prone, and tends to create many scripts with unpredictable dependencies and interactions, especially in a modular plug-in oriented environment like TWiki. For TWiki, each time a command is run, all the overhead of activating a Perl environment and a TWiki session is incurred. (Unlike when TWiki runs under mod_perl under Apache httpd.)
+
+The TWiki periodic task framework provides a system daemon that is capable of handling TWiki's maintenance tasks without using _cron_. The system daemon provides a persistent Perl environment, _cron_ -like scheduling, managment via the *configure* utility, and support for TWiki plugins and extensions.
+---++ Administering Periodic Tasks
+
+Periodic tasks run under a system daemon, which is started like any other _init_ script. _chkconfig_ can be used to enable and disable the daemon.
+
+The init script (which is also the daemon) has the standard start, stop, restart and status commands, making it compatible with common Unix startup managers.
+
+Periodic tasks are managed via the *configure* utility, which provides a GUI for specifying schedules and configuration parameters for periodic tasks. The daemon automatically detects changes in the configuration file, so no restarts are necessary.
+
+When you install or upgrade a plugin or extension that uses the framework, you do need to restart the daemon so it runs the new code.
+---+++ Installing the Periodic Task framework
+
+The Periodic Task framework will be bundled with the TWiki core in the near future and will be part of the normal installation process.
+
+For early adopters and developers, manual installation is necessary. I may script this if I get a chance.
+   * Untar the =periodic.tgz= file into your =twiki/= directory
+   * Here is a current listing as this topic is written, the exact contents may vary
+<verbatim>-rw-r----- apache/apache 23720 2011-05-30 21:30:53 data/TWiki/PeriodicTasks.txt
+-rw-r----- apache/apache  1075 2011-05-30 19:34:43 lib/TWiki/Configure/Checkers/CleanupSchedule.pm
+-rw-r----- apache/apache  1111 2011-05-28 05:06:09 lib/TWiki/Configure/Checkers/ErrorFileName.pm
+-rw-r----- apache/apache  5862 2011-05-25 20:57:58 lib/TWiki/Configure/ScheduleChecker.pm
+-r--r----- apache/apache  5575 2011-05-30 20:47:15 lib/TWiki/Configure/SCHEDULES.pm
+-rw-r----- apache/apache 13677 2011-05-30 19:33:54 lib/TWiki/Configure/Types/SCHEDULE.pm
+-r--r----- apache/apache   102 2011-05-30 16:10:24 lib/TWiki/Configure/UIs/SCHEDULES.pm
+-rw-r----- apache/apache  1214 2011-05-30 22:49:45 Valuer.pm.patch
+-rw-r----- apache/apache  2430 2011-05-30 19:46:09 lib/TWiki/Contrib/PeriodicTasks/Config.spec
+-rw-r----- apache/apache   403 2011-05-30 19:31:16 lib/TWiki/Contrib/PeriodicTasks/Frobulator.spec
+-rw-r----- apache/apache   382 2011-05-30 19:31:11 lib/TWiki/Contrib/PeriodicTasks/MailerSchedules.spec
+-r--r----- apache/apache 11067 2011-05-30 09:29:49 lib/TWiki/Plugins/PeriodicTestPlugin.pm
+-rw-r----- apache/apache 52518 2011-05-30 20:11:50 pub/TWiki/PeriodicTasks/PeriodicTasksGui.1.png
+-rw-r----- apache/apache 80401 2011-05-30 20:41:28 pub/TWiki/PeriodicTasks/PeriodicTasksGui.3.png
+-rwsr-s--- apache/apache 32544 2011-05-30 09:24:07 tools/experimental_tick_twiki.pl</verbatim>
+   * Update file ownership to match your webserver
+   * Be *sure* to =chmod <strong><u>6</u></strong>750 tools/experimental_tick_twiki.pl=
+   * Patch TWiki to support configure. 
+      * =patch -b lib/TWiki/Configure/Valuer.pm &lt;Valuer.pm.patch=
+   * Create a softlink to enable =tick_twiki= to find your =setlib.cfg=, which is normally in your =bin/= directory. 
+      * =pushd tools; ln -s %ORANGE%../bin %ENDCOLOR%experimental_tick_twiki.pl%ORANGE% *_bin* %ENDCOLOR%;popd=
+      * Note that you can specify your directoy any way that's convenient, but the link *must* be from =experimental_tick_twiki.pl_bin= to the directory.
+      * ls -l tools/experimental_tick_twiki.pl*<br /><span class="WYSIWYG_TT">-rwsr-s--- 1 apache apache 32543 May 30 23:08 %RED%tools/experimental_tick_twiki.pl%ENDCOLOR%<br />lrwxrwxrwx 1 root apache 6 May 26 12:27 <font color="deepskyblue" class="WYSIWYG_COLOR">tools/experimental_tick_twiki.pl_bin </font>-&gt; <font color="mediumblue" class="WYSIWYG_TT">../bin</font></span>
+   * Enter tick_twiki into your startup database: 
+      * ln -s `readlink -en tools/experimental_tick_twiki.pl` /etc/init.d/tick_twiki.pl
+      * chkconfig --add tick_twiki.pl
+      * ls -l /etc/rc5.d/*tick*<br />lrwxrwxrwx 1 root root 23 May 30 23:09 <font color="deepskyblue" class="WYSIWYG_COLOR">/etc/rc5.d/S90tick_twiki.pl</font> -&gt; %RED%../init.d/tick_twiki.pl%ENDCOLOR%
+      * ls -l /etc/rc6.d/*tick*<br />lrwxrwxrwx 1 root root 23 May 30 23:09 <font color="deepskyblue" class="WYSIWYG_COLOR">/etc/rc6.d/K10tick_twiki.pl </font>-&gt; %RED% =../init.d/tick_twiki.pl= %ENDCOLOR%
+      * The exact sequence assigned may vary depending on what you have installed. Generally, it should start late and shutdown early.
+   * Install your updated plugins
+   * Remove your old *cron* jobs
+   * Start the daemon 
+      * /etc/init.d/tick_twiki start
+   * Done. From here out, everything will be simpler.
+---++++ Special considerations for multiple wiki environments
+
+Some sites run multiple versions of TWiki simultaneously. The framework supports this, but the setup is somewhat involved.
+
+The issue is that tick_twiki needs to find its wiki at boot time without any configuration file. It does this by following links - that's why the previous procedure created a link from the script name to the =bin/= directory, which is where =setlib.cfg= lives..
+
+With two or more wikis, it is necessary to find two different bin/ directories from the same script. This can be done with brute force by copying the tick_twiki script to another filename. But that's a maintenance headache. Instead, we use a hardlink. (A softlink won't do.)
+
+Suppose your second wiki uses bin2/.
+   * pushd tools/ ; ln experimental_tick_twiki.pl experimental_tick_twiki%ORANGE%_2%ENDCOLOR%.pl; ln -s %ORANGE%../bin2 %ENDCOLOR%experimental_tick_twiki_2.pl_bin ; popd
+   * Now we have a second name for the =tick_twiki= script, and another softlink from that name to the second wiki's =bin/= directory. And we;'re done. Just be sure *not* to substitute a softlink for the specified hardlink. It won't work. Really.
+   * You can use the same recipe for as many other wikis as you have.
+---++ Adjusting task schedules
+
+*Configure* provides an interface to the Periodic Task framework that makes it easy to adjust schedules to your operational requirements. Look for the <strong><u><font color="mediumblue"><strong><u>Periodic Tasks</u></strong></font></u></strong> section on the *Configure* screen and open it. It will look something like this:
+
+<img width="1080" alt="Administrator's view of bulit-in tasks GUI" align="middle" src="%ATTACHURL%/PeriodicTasksGui.3.png" height="951" />
+---++ Developing Periodic Tasks
+
+Periodic tasks come in several flavors; the first task is to choose the flavor for the problem at hand. This description is from the point of view of a Plugin author, although extensions/addons follow a very similar path.
+
+   * Routine cleanup tasks that are reasonably short and can run on the system-administrator's generic maintenance schedule can use the =pluginCleanup= mechanism. This involves adding a few lines of code to your plugin, as well as adding any other parameters to Configure. This is the simplest, but least flexible flavor.
+   * Tasks that are reasonably short but need their own schedule use the _Synchronous Task_ mechanism to register a subroutine that runs synchronously on their own schedule. Synchronous means that only one is run at a time, so conflicts among these tasks can't occur. Although the order in which tasks scheduled for the same time is unpredictable, one task can't run until the previous task completes. And a long-running or looping task will block all other tasks in the schedule. The =pluginCleanup= mechanism uses a synchronous task.
+   * Tasks that have significant resource or time requirements use the _Asynchronous Task_ mechanism to register a subroutine that runs asynchronously on their own schedule as an independent process. This is the most flexible in almost all respects.
+
+All periodic tasks must consider synchronization issues with respect to the webserver (on-line users.)
+---+++ Using the pluginCleanup mechanism in a plugin
+
+Simply add a routine named =pluginCleanup= to your plugin. Here's a simple example:
+<verbatim>
+# Task run on standard plugin cleanup schedule
+#
+# You need only define this subroutine for it to be called on the admin-defined schedule
+# $TWiki::cfg{CleanupSchedule}
+#
+# For a simple plugin, this is all you need.  This sample code simply deletes old files
+# in the working area.  The age is configured by a web preference or a config item.
+#
+# This name (pluginCleanup) is required.
+sub pluginCleanup {
+    my( $session, $now ) = @_;
+
+    TWiki::Func::writeDebug( "$pluginName: Running pluginCleanup: $now" );
+
+    my $wa = TWiki::Func::getWorkArea($pluginName);
+
+    # Maximum age for files before they are deleted.
+    # Note that updating MaxAge in configure will be reflected here without any code in the plugin.
+
+    my $maxage =  TWiki::Func::getPreferencesValue( "\U$pluginName\E_MAXAGE" ) ||
+                  $TWiki::cfg{Plugins}{$pluginName}{MaxAge} || 24;
+
+    my $oldest = $now - ($maxage*60*60);
+
+    # One might want to select only certain files from the working area and/or log deletions.
+    # One might also want to see if a working file's associated topic still exists.
+    # You can do whatever your plugin requires...
+
+    foreach my $wf ( glob( "$wa/*" ) ) {
+        my( $uid, $gid, $mtime ) = (stat $wf)[4,5,9];
+
+        if( $uid == $> && $gid == $)+0 && $mtime < $oldest) {
+            $wf =~ /^(.*$)$/;               # Untaint so -T works
+            $wf = $1;
+            unlink $wf or TWiki::Func::writeWarning( "Unable to delete $wa: $!" );
+        }
+    }
+
+    return 0;
+}</verbatim>
+
+The return value of =pluginCleanup= is currently ignored, but should be 0. Any exception that you throw (using die) will be logged and ignored.
+
+---+++ Using the Synchronous Task mechanism in a plugin
+Using the synchronous task mechanism requires you to register the task in your =pluginInit= routine, using the =TWiki::Func::AddTask= routine.
+
+Because the =AddTask= routine is only present in the daemon, you must check the =Periodic_Task= context variable before calling it.
+---++++ TWiki::Func::AddTask
+
+Parameters:
+   1 =name= A name for this task. Must be unique in this package. Used for logging and for other API functions.
+   1 =sub= A reference to the subroutine being scheduled. This routine will be called with =name=, =session=, and any =userargs=.
+   1 =schedule= The schedule for this task.
+   1 = userargs= (optional) arguments that will be passed to =sub= each time it's invoked. Useful for context when a single routine is scheduled multiple times.
+
+The =schedule= must resolve to a ( =vixie-=) =cron= time specification, with an optional sixth field for specifying the second. Normally should be =$TWiki::cfg{Plugins}{YourPlugin}{SomeSchedule}=. If =undef=, defaults to $TWiki::cfg{CleanupSchedule}. If a single word, it is translated as a webpreference name.
+
+Return value: Indeterminate
+
+May throw exceptions.
+<verbatim>
+
+sub initPlugin {
+    my( $topic, $web, $user, $installWeb ) = @_;
+
+    # Normal plugin initialization goes here...
+
+    if( TWiki::Func::getContext()->{Periodic_Task} ) {
+
+          # Create standard synchronous task with a programable schedule
+
+          TWiki::Func::AddTask( 'cronTask1',  # task name, must be unique within this package
+                                \&cronTask,   # Subroutine to run
+                                $TWiki::cfg{Plugins}{$pluginName}{Schedule},
+                                              # Schedule in crontab format
+                                              # May also be undef for the default plugin cleanup schedule
+                                              # or a preference name
+                                 1, 2, 3,     # Arguments for routine - optional, zero or more
+            );
+    }
+    # Plugin correctly initialized
+    return 1;
+}
+</verbatim>
+
+Then, add your task. Your task will be called with the =$session= variable containing a fully-initialized TWiki session. This session is shared with all other synchronous tasks, so be sure to leave it in the same state as when you receive it. However, use your own arguments for any other state that your task requires, as you are not guaranteed to get the same session on subsequent calls. You can safely pass your own hashref or objectref.
+
+Your task should return 0 for success (any other value will cause a warning to be logged.)
+
+Here's an example that doesn't do anything except demonstrate the interface.
+<verbatim>
+
+sub cronTask {
+    my( $name, $session, $arg1, $arg2, $arg3 ) = @_;
+
+    TWiki::Func::writeDebug( "$pluginName: $name: cronTask( '$arg1', '$arg2', '$arg3' )" );
+
+    TWiki::Func::writeDebug( "$name - Nextrun " . (scalar localtime( TWiki::Func::NextRuntime( $name ) )) );
+ 
+    # Always return success (like a command)
+    return 0;
+}
+</verbatim>
+
+---+++ Using the Asynchronous Task mechanism in a plugin
+Asynchronous tasks are scheduled using the =AddAsyncTask= api. Except for its name, the interface is identical to =AddTask=, except that when the routine runs, it will run in a fork of the daemon. You should =return= from the routine with an exit status (generally 0); otherwise an error will be logged.
+
+When your routine is called, the perl =STDERR= handle is redirected to an error log file, and =STDIN= and =STDOUT= are connected to =/dev/null=. The =STDERR= file descriptor is also connected to =/dev/null=, so if you need to capture output from an external process, you'll need to make the usual arrangements.
+
+The $session variable is a private fully-initialized TWiki session - any changes that you make will disappear when your task exits. Any arguments that you supply to your task are also copied anew for each invocation; you can not use them to pass state from one invocation to the next (as you can with synchronous tasks). Such is the nature of forks.
+
+The =TWiki::Func:: periodic task API is not available to asynchronous tasks, as it can't communicate with the daemon.
+---+++ Special Considerations for Configuration Items
+Because the environment persists, your plugin may need to take special action when a TWiki configuration item changes. This is not an issue for most configuration items; the daemon will update the =TWiki::cfg= global whenever it detects a change. However, if the value of the item has been cached by your task, or by a service that it calls, the cache or service needs to be refreshed.
+
+For example, if the administrator changes the configuration item that defines your task's schedule, the daemon's scheduler needs to be told of the revision. You may also want to stop operations if your service is deconfigured, or take other action.
+
+To handle this efficiently, your plugin can ask the daemon to monitor any configuration item(s) of interest and register a subroutine to be called (synchronously) when a change is detected.
+---++++ TWiki::Func::RegisterConfigChangeHandler
+
+Normally called in =initPplugin= when creating the tasks, but can be called in any synchronous context.
+
+Parameters:
+   1 =items= configuration item name (or array ref if more than one) to monitor
+   1 =sub= A reference to the subroutine called on change. This routine will be called with =session=, a change hashref, and any =userargs=.
+   1 =userargs= (optional) arguments that will be passed to =sub= each time it's invoked.
+
+Return value: =true= on success =false= on failure
+
+May throw exceptions.
+
+Item names are as displayed in *configure*, e.g. ={MailerAddon}{EnableMailer}=.
+
+A change is when an item is added or removed from the configuration, as well as when its value changes.
+
+Here is an example of how to use this API. This example is a bit more complex than typically required.
+
+In =initPlugin= (and only if in =Periodic_task= context):
+<verbatim>
+    if( TWiki::Func::getContext()->{Periodic_Task} ) {
+
+        # RegisterConfigChangeHandler( '{CleanupSchedule}', \&reconfigHandler, 'Foo' );
+
+        TWiki::Func::RegisterConfigChangeHandler( [ '{Plugins}{$pluginName}{Schedule}',
+                                                    '{CleanupSchedule}',
+                                                    '{MailerSchedule}',
+                                                    '{EnableMailer}',
+                                                  ], \&reconfigHandler );
+    }
+</verbatim>
+
+The handler will be called with the $session variable, a hashref describing the change(s), and any arguments passed at registration.
+
+The hashref will have configuration item names as keys, and the value will be the new value of the item. The value will be =undef= if the item is not present.
+
+You should expect more than one change per invocation if you are monitoring more than one configuration item. But remember that administrators often break tasks into steps, so don't assume that multiple changes are mutually consistent or complete.
+
+The corresponding sample handler (again more involved than typically necessary) is:
+<verbatim>
+
+sub reconfigHandler {
+    my( $twiki, $changes ) = @_;
+
+    foreach my $change (keys %$changes) {
+         my $value = $changes->{$change};
+
+         ({
+               '{Plugins}{$pluginName}{Schedule}' => sub {
+                                                             TWiki::Func::ReplaceSchedule( 'cronTask1', $value );
+                                                         },
+               '{CleanupSchedule}' => sub {   # Note this is the default if any other schedule is undefined
+                                              TWiki::Func::ReplaceSchedule( 'cronTask1', undef ) 
+                                                     unless( defined $TWiki::cfg{Plugins}{$pluginName}{Schedule} );
+                                              TWiki::Func::ReplaceSchedule( 'Mail', undef ) 
+                                                     unless( defined $TWiki::cfg{MailerSchedule} );
+                                           },
+               '{MailerSchedule}' => sub {
+                                             TWiki::Func::ReplaceSchedule( 'Mail', $value );
+                                         },
+               '{EnableMailer}' => sub {
+                                           if( $value ) {
+                                                            TWiki::Func::AddAsyncTask( 'Mail', \&cronTask, 
+                                                                                       $TWiki::cfg{MailerSchedule}, 
+                                                                                       "runmail-async", "Mailer.Log" )
+
+
+                                           } else {
+                                                      TWiki::Func::DeleteTask( 'Mail' );
+                                           }
+                                        },
+           }->{$change} || sub { })->($change, $value);
+    }
+
+    return;
+}
+</verbatim>
+
+---+++ Other Periodic Task API functions
+You probably noticed that the examples used several other API functions. 
+---++++ TWiki::Func::DeleteTask
+Removes a task from the schedule. It won't be called again - however, any asynchronous task will continue to run until it exits.
+
+Parameters:
+   1 =name= (as specified in =TWiki::Func::AddTask=) to delete.
+
+Return value: =true= on success =false= on failure
+
+May throw exceptions.
+
+---++++ TWiki::Func::NextRuntime
+Returns the time (seconds since epoch) that a task is next scheduled to run. Note that tasks may be defered beyond their scheduled time for any number of reasons.
+
+Parameters:
+   1 =name= (as specified in =TWiki::Func::AddTask=) to query.
+
+Return value: =true= on success =false= on failure
+
+May throw exceptions.
+
+---++++ TWiki::Func::Replace Schedule
+Parameters: 
+   1 =name= (as specified in =TWiki::Func::AddTask=) to modify.
+   1 =schedule= new schedule (as specified in =TWiki::Func::AddTask=)
+
+Return value: =true= on success =false= on failure
+
+May throw exceptions.
+---++ Creating a Configure Interface
+
+As with any addon, you define a configure interface in a =.spec= file. The format of .spec files is documented in =lib/Configure/TWikiCfg.pm=.
+
+The Periodic Tasks framework adds a =SCHEDULE= interface type. Use this to declare your schedule configuration items, as it will provide a much better user interface than a =STRING=. The =SCHEDULE= interface provides drop-down boxes and field validation, which will also save you support questions. Here is a sample Configure screen, which was recorded in *expert* mode to show all the fields. Normally, the *crontab* and file spec fields would be omitted.
+
+<img width="695" alt="Screenshot of a SCHEDULE interface, in EXPERT mode" align="middle" src="%ATTACHURL%/PeriodicTasksGui.1.png" height="361" />
+
+To consolidate the scheduling information for all Periodic Tasks in one place, your add-on's scheduling configuration items should be placed in a separate . =spec= file. Name the file with your Plugin's name (any name will do, but it needs to be unique), and put it in =lib/TWiki/Contrib/PeriodicTasks=. It will automatically appear in the GUI.
+
+Here is the =.spec= file used to produce this display:
+<verbatim>#---++ Universal Frobulator
+# Task scheduling for the Universal Frobulator
+# <BR>
+# The frobulator guru schedules her vacations here.
+#
+# **SCHEDULE**
+# Vacate early, vacate often
+# Scheduling for the Frobulator.
+# **BOOLEAN**
+# Enable the framostat
+$TWiki::cfg{Frobulator}{Enabled} = 1;
+1;</verbatim>
+
+If you have other configuration items, you can either place them in this =.spec= file, or in the usual =lib/TWiki/Plugins/&lt;PluginName&gt;/Config.spec=.
+
+If you have only a few items, put them with the schedule. If you have a lot (or a lot of description), use the traditional file.
+
+Also use the traditional file if you want to ensure that your plugin will work (in degraded mode) on an installation without the periodic tasks framework installed.
+
+---++ Debugging
+
+Your plugin is instantiated in the daemon in almost the same way as it is under a webserver.
+
+Your first step should be to run =perl -c -I lib lib/TWiki/Plugins/&lt;pluginName&gt;.pm= and make sure it compiles. As usual, =use strict= and =use warnings= will save you time. Make sure your file ownerships and permissions are correct. Then check them again.
+
+Next, open *configure* and make sure that your plugin is enabled. The daemon will only start enabled plugins.
+
+Open TWiki.InstalledPlugins and make sure that your plugin is loaded and that no errors are reported. Note that the Periodic Task API is not displayed here.
+
+Go back to *configure* and verify that your configuration items (if any) are set as desired.
+
+Next, you can use log files and/or the perl debugger to instrument your code. Errors will be written (by default, it's configurable) to =data/error%DATE%.txt=, warnings to =data/warn%DATE%.txt=, and debug messages to =data/debug.txt=. Use =TWiki::Func::writeDebug= as usual. It, and the rest of the TWiki API should work normally.
+
+For more serious debugging, you can run the daemon from a command window. (This is actually easier than debugging your plugin under a webserver.)
+
+The daemon is implemented in =tools/tick_twiki.pl=. (The current prototype uses =tools/experimental_tick_twiki.pl=, but this will change before release.) This used to be run as a cron job that handled the simple maintenance jobs, and if run on a system that still has this setup, it will simply start the daemon if necessary and exit.
+
+The same file is soft-linked from =/etc/init.d= to provide automatic startup and shutdown. =chkconfig= can be used to enable or disable the automatic startup/shutdown interface. You can also run the usual =start=, stop, =reload,= =status=, and =help= commands manually. The =status dump= command will write the job queue to the TWiki debug log file without stopping the daemon.
+
+Because the daemon is started under *root* at system startup, it is run =setuid= and =setgid= to the webserver account. It will refuse to run under *root*. (If you defeat this, you run the risk of writing on or deleting unintended files, and certainly will write files with the wrong ownership and permissions. This is likely to break your website. Don't do this.)
+
+Running =setuid= and =setgid= also means that if you use the perl debugger, you must modify the =#!= line to =-wd= *and* specify =-wd= on the perl command line. This is a perl restriction.
+
+The daemon will accept several options on the command line - none of the options are used in normal operation, but they are useful in debugging your code.
+   * -f will keep the daemon in the foreground - you really want to do this!
+   * -d will send all logging to stdout (your terminal) instead of the system logs. It will also enable informational messages, and implies -f
+   * -v takes a numeric argument, which controls the verbosity of the task system. Default is 1 (warning and error messages only). 2 is error only, 0 is informational, warning and error. And -1 is extremely verbose. You won't want to use this - it dumps large data structures to the logs (or your screen.)
+   * -l suppresses the tick_twiki expired login cleanup (a good idea if you're running a private copy of the daemon)
+   * -x suppresses the expired leases cleanup.
+   * -g suppresses the pluginCleanup calls (useful if you're debugging a registered task and don't want other plugin cleanups to run)
+   * -p places the daemon's .pid file in the specified path - useful only if you're running a private copy.
+
+Remember that these are switches to the daemon commands, *not* perl. You need =perl -d tools/tick_twiki -dlxfv0 start= for normal debugging. Note that the two =-d= s are different.
+
+You may want to adjust schedules for debugging.
+
+You probably want to substitute =TWiki::Func::AddTask= for =TWiki::Func::AddAsyncTask= for most debugging; forks and debuggers don't get along well. At least not without a lot of experience.
+
+And don't forget that the daemon only loads your plugin once, at startup.
+
+__Related Topics:__ AdminDocumentationCategory, DeveloperDocumentationCategory
+
+-- Main.TimotheLitt - 30 May 2011
+
+%META:FILEATTACHMENT{name="PeriodicTasksGui.1.png" attachment="PeriodicTasksGui.1.png" attr="h" comment="Screen capture of prototype GUI" date="1306800710" path="C:\Users\timothe\Desktop\PeriodicTasksGui.1.png" size="52518" stream="C:\Users\timothe\Desktop\PeriodicTasksGui.1.png" tmpFilename="/tmp/NkjLbNTFqZ" user="X509_2fC_3dUS_2fST_3dMassachusetts_2fL_3dSouthborough_2fO_3dlitts_2enet_2fOU_3dLitt_20family_2fOU_3dNetwork_20Administration_2fCN_3dTimothe_20Litt_2femailAddress_3dtimothe_40litts_2enet" version="1"}%
+%META:FILEATTACHMENT{name="PeriodicTasksGui.3.png" attachment="PeriodicTasksGui.3.png" attr="h" comment="Administrator's view of built-in Periodic Tasks GUI" date="1306802488" path="C:\Users\timothe\Desktop\PeriodicTasksGui.3.png" size="80401" stream="C:\Users\timothe\Desktop\PeriodicTasksGui.3.png" tmpFilename="/tmp/IjG2xjS_40" user="X509_2fC_3dUS_2fST_3dMassachusetts_2fL_3dSouthborough_2fO_3dlitts_2enet_2fOU_3dLitt_20family_2fOU_3dNetwork_20Administration_2fCN_3dTimothe_20Litt_2femailAddress_3dtimothe_40litts_2enet" version="1"}%

@@ -1,0 +1,26 @@
+--- lib/TWiki/Configure/Valuer.pm.noperiodic	2008-09-11 23:41:58.000000000 -0400
++++ lib/TWiki/Configure/Valuer.pm	2011-05-26 21:48:37.000000000 -0400
+@@ -79,16 +79,21 @@
+     # Each config param has an associated TYPEOF: param, so we only
+     # pick up those things that we really want
+     foreach $param ( $query->param ) {
+         # the - (and therefore the ' and ") is required for languages
+         # e.g. {Languages}{'zh-cn'}.
+-        next unless $param =~ /^TYPEOF:((?:{[-\w'"]+})*)/;
++        next unless $param =~ /^TYPEOF:((?:\{[-\w'"]+\})*)/;
+         my $keys = $1;
+         # The value of TYPEOF: is the type name
+         my $typename = $query->param( $param );
+         my $type = TWiki::Configure::Type::load($typename);
+-        my $newval = $type->string2value($query->param( $keys ));
++	my $newval;
++	if( $type->{NeedsQuery} ) {
++	    $newval = $type->string2value($query, $keys);
++	} else {
++	    $newval = $type->string2value($query->param( $keys ));
++	}
+         my $xpr = '$this->{values}->'.$keys;
+         my $curval = eval $xpr;
+         if (!$type->equals($newval, $curval)) {
+             #print "<br>$typename $keys '$newval' != '$curval'\n";
+             eval $xpr.' = $newval';
