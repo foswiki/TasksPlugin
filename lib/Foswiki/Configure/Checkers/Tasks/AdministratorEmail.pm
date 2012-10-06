@@ -10,26 +10,21 @@ use warnings;
 
 =pod
 
----+ package Foswiki::Configure::Checkers::CleanupSchedule
-Configure GUI checker for the CleanupSchedule SCHEDULE item.
+---+ package Foswiki::Configure::Checkers::Tasks::AdministratorEmail
+Configure GUI checker for the {Tasks}{AdministratorEmail} configuration item.
 
-SCHEDULE will automagically generate this checker as a default, but this module is retained as an example
-in case some schedule item needs special consideration.
-
-Note that $value is NOT the value to be checked; see Foswiki::Configure::Checkers::Tasks::ScheduleChecker for details.
+Any problems detected are reported.
 
 =cut
 
-package Foswiki::Configure::Checkers::CleanupSchedule;
-use base 'Foswiki::Configure::Checkers::Tasks::ScheduleChecker';
-
-use Foswiki::Configure::Checker;
+package Foswiki::Configure::Checkers::Tasks::AdministratorEmail;
+use base 'Foswiki::Configure::Checker';
 
 
 =pod
 
 ---++ ObjectMethod check( $valueObject ) -> $errorString
-Validates the CleanupSchedule item for the configure GUI
+Validates the {Tasks}{AdministratorEmail} item for the configure GUI
    * =$valueObject= - configure value object
 
 Returns empty string if OK, error string with any errors
@@ -38,9 +33,16 @@ Returns empty string if OK, error string with any errors
 
 sub check {
     my $this = shift;
-    my $value = shift;
 
-    return $this->SUPER::check( $value );
+    if( defined $Foswiki::cfg{Tasks}{AdministratorEmail} &&
+        length $Foswiki::cfg{Tasks}{AdministratorEmail} ) {
+
+        return '' if( $Foswiki::cfg{Tasks}{AdministratorEmail} =~ /\@/ );
+        return $this->WARN( "Doesn't look like an e-mail address" );
+    }
+
+    return $this->NOTE( "Defaulted to " . ($Foswiki::cfg{WebMasterEmail} ||
+                                            'no email' ) );
 }
 
 1;

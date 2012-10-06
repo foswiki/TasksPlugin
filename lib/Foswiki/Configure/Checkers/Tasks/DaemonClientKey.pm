@@ -10,26 +10,24 @@ use warnings;
 
 =pod
 
----+ package Foswiki::Configure::Checkers::CleanupSchedule
-Configure GUI checker for the CleanupSchedule SCHEDULE item.
+---+ package Foswiki::Configure::Checkers::Tasks::DaemonClientKey
+Configure GUI checker for the {Tasks}{DaemonClientKey} configuration item.
 
-SCHEDULE will automagically generate this checker as a default, but this module is retained as an example
-in case some schedule item needs special consideration.
+Verifies that a private key file is specified and readable when https client verification is selected.
+Verifies no world write.
 
-Note that $value is NOT the value to be checked; see Foswiki::Configure::Checkers::Tasks::ScheduleChecker for details.
+Any problems detected are reported.
 
 =cut
 
-package Foswiki::Configure::Checkers::CleanupSchedule;
-use base 'Foswiki::Configure::Checkers::Tasks::ScheduleChecker';
-
-use Foswiki::Configure::Checker;
+package Foswiki::Configure::Checkers::Tasks::DaemonClientKey;
+use base 'Foswiki::Configure::Checkers::Certificate::KeyChecker';
 
 
 =pod
 
 ---++ ObjectMethod check( $valueObject ) -> $errorString
-Validates the CleanupSchedule item for the configure GUI
+Validates the {Tasks}{DaemonClientKey} item for the configure GUI
    * =$valueObject= - configure value object
 
 Returns empty string if OK, error string with any errors
@@ -38,9 +36,11 @@ Returns empty string if OK, error string with any errors
 
 sub check {
     my $this = shift;
-    my $value = shift;
 
-    return $this->SUPER::check( $value );
+
+    return '' unless( $Foswiki::cfg{Tasks}{StatusServerVerifyClient} );
+
+    return $this->SUPER::check( @_, '{Tasks}{DaemonClientKeyPassword}' );
 }
 
 1;

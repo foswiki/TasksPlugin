@@ -8,39 +8,14 @@
 use strict;
 use warnings;
 
-=pod
+package Foswiki::Configure::Checkers::Certificate::EmailChecker;
 
----+ package Foswiki::Configure::Checkers::CleanupSchedule
-Configure GUI checker for the CleanupSchedule SCHEDULE item.
-
-SCHEDULE will automagically generate this checker as a default, but this module is retained as an example
-in case some schedule item needs special consideration.
-
-Note that $value is NOT the value to be checked; see Foswiki::Configure::Checkers::Tasks::ScheduleChecker for details.
-
-=cut
-
-package Foswiki::Configure::Checkers::CleanupSchedule;
-use base 'Foswiki::Configure::Checkers::Tasks::ScheduleChecker';
-
-use Foswiki::Configure::Checker;
-
-
-=pod
-
----++ ObjectMethod check( $valueObject ) -> $errorString
-Validates the CleanupSchedule item for the configure GUI
-   * =$valueObject= - configure value object
-
-Returns empty string if OK, error string with any errors
-
-=cut
+use base 'Foswiki::Configure::Checkers::Certificate';
 
 sub check {
     my $this = shift;
-    my $value = shift;
 
-    return $this->SUPER::check( $value );
+    return $this->checkUsage( shift, 'email' );
 }
 
 1;
@@ -59,3 +34,4 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details, published at
 http://www.gnu.org/copyleft/gpl.html
+

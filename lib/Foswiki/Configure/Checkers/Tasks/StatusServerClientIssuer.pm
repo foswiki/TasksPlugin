@@ -10,26 +10,25 @@ use warnings;
 
 =pod
 
----+ package Foswiki::Configure::Checkers::CleanupSchedule
-Configure GUI checker for the CleanupSchedule SCHEDULE item.
+---+ package Foswiki::Configure::Checkers::Tasks::StatusServerClientIssuer
+Configure GUI checker for the {Tasks}{StatusServerClientIssuer configuration item.
 
-SCHEDULE will automagically generate this checker as a default, but this module is retained as an example
-in case some schedule item needs special consideration.
+Verifies that the StatusServerClientIssuer validator is a compilable regexp.
 
-Note that $value is NOT the value to be checked; see Foswiki::Configure::Checkers::Tasks::ScheduleChecker for details.
+Any problems detected are reported.
 
 =cut
 
-package Foswiki::Configure::Checkers::CleanupSchedule;
-use base 'Foswiki::Configure::Checkers::Tasks::ScheduleChecker';
+package Foswiki::Configure::Checkers::Tasks::StatusServerClientIssuer;
 
-use Foswiki::Configure::Checker;
-
+# Standard checker's checkRE won't work with '/'.  Fixed in post 5.1.0 TWiki trunk.  Use private checker for now.
+#use base 'Foswiki::Configure::Checker';
+use base 'Foswiki::Configure::Checkers::Tasks::RegExpChecker';
 
 =pod
 
 ---++ ObjectMethod check( $valueObject ) -> $errorString
-Validates the CleanupSchedule item for the configure GUI
+Validates the {Tasks}{StatusServerClientIssuer} item for the configure GUI
    * =$valueObject= - configure value object
 
 Returns empty string if OK, error string with any errors
@@ -38,9 +37,13 @@ Returns empty string if OK, error string with any errors
 
 sub check {
     my $this = shift;
-    my $value = shift;
 
-    return $this->SUPER::check( $value );
+    my $e = '';
+
+    return $e unless( $Foswiki::cfg{Tasks}{StatusServerClientIssuer} );
+
+
+    return $this->checkRE('{Tasks}{StatusServerClientIssuer}');
 }
 
 1;

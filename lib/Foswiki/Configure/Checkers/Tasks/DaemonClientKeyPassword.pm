@@ -10,26 +10,24 @@ use warnings;
 
 =pod
 
----+ package Foswiki::Configure::Checkers::CleanupSchedule
-Configure GUI checker for the CleanupSchedule SCHEDULE item.
+---+ package Foswiki::Configure::Checkers::Tasks::DaemonClientKeyPassword
+Configure GUI checker for the {Tasks}{DaemonClientKeyPassword} configuration item.
 
-SCHEDULE will automagically generate this checker as a default, but this module is retained as an example
-in case some schedule item needs special consideration.
+Verifies that a password is not present unless https client verification is selected.  This is to discourage leaving a 
+cleartext password for something in a config file when it's not necessary.
 
-Note that $value is NOT the value to be checked; see Foswiki::Configure::Checkers::Tasks::ScheduleChecker for details.
+Any problems detected are reported.
 
 =cut
 
-package Foswiki::Configure::Checkers::CleanupSchedule;
-use base 'Foswiki::Configure::Checkers::Tasks::ScheduleChecker';
-
-use Foswiki::Configure::Checker;
+package Foswiki::Configure::Checkers::Tasks::DaemonClientKeyPassword;
+use base 'Foswiki::Configure::Checker';
 
 
 =pod
 
 ---++ ObjectMethod check( $valueObject ) -> $errorString
-Validates the CleanupSchedule item for the configure GUI
+Validates the {Tasks}{DaemonClientKeyPassword} item for the configure GUI
    * =$valueObject= - configure value object
 
 Returns empty string if OK, error string with any errors
@@ -38,9 +36,16 @@ Returns empty string if OK, error string with any errors
 
 sub check {
     my $this = shift;
-    my $value = shift;
 
-    return $this->SUPER::check( $value );
+    my $e = '';
+
+    my $pass =  $Foswiki::cfg{Tasks}{DaemonClientKeyPassword} || '';
+    return $e unless( $pass );
+
+    $Foswiki::cfg{Tasks}{StatusServerVerifyClient} or
+      return $this->WARN( "Password should not be set unless https client verification is selected." );
+
+    return $e;
 }
 
 1;

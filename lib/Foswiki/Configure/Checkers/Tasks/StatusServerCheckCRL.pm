@@ -10,26 +10,23 @@ use warnings;
 
 =pod
 
----+ package Foswiki::Configure::Checkers::CleanupSchedule
-Configure GUI checker for the CleanupSchedule SCHEDULE item.
+---+ package Foswiki::Configure::Checkers::Tasks::StatusServerCheckCRL
+Configure GUI checker for the {Tasks}{StatusServerCheckCRL} configuration item.
 
-SCHEDULE will automagically generate this checker as a default, but this module is retained as an example
-in case some schedule item needs special consideration.
+Verifies that a https protocol is selected and that a CRL source exists.
 
-Note that $value is NOT the value to be checked; see Foswiki::Configure::Checkers::Tasks::ScheduleChecker for details.
+Any problems detected are reported.
 
 =cut
 
-package Foswiki::Configure::Checkers::CleanupSchedule;
-use base 'Foswiki::Configure::Checkers::Tasks::ScheduleChecker';
-
-use Foswiki::Configure::Checker;
+package Foswiki::Configure::Checkers::Tasks::StatusServerCheckCRL;
+use base 'Foswiki::Configure::Checker';
 
 
 =pod
 
 ---++ ObjectMethod check( $valueObject ) -> $errorString
-Validates the CleanupSchedule item for the configure GUI
+Validates the {Tasks}{StatusServerCheckCRL} item for the configure GUI
    * =$valueObject= - configure value object
 
 Returns empty string if OK, error string with any errors
@@ -38,9 +35,15 @@ Returns empty string if OK, error string with any errors
 
 sub check {
     my $this = shift;
-    my $value = shift;
 
-    return $this->SUPER::check( $value );
+    my $e = '';
+
+    return $e unless( $Foswiki::cfg{Tasks}{StatusServerCheckCRL} );
+
+    $Foswiki::cfg{Tasks}{StatusServerProtocol} eq 'https' && $Foswiki::cfg{Tasks}{StatusServerVerifyClient} or
+      return $this->WARN( "CRL is not used unless https client verification is active" );
+
+    return $e;
 }
 
 1;

@@ -5,43 +5,19 @@
 # License is at end of module.
 # Removal of Copyright and/or License prohibited.
 
+
 use strict;
 use warnings;
 
 =pod
 
----+ package Foswiki::Configure::Checkers::CleanupSchedule
-Configure GUI checker for the CleanupSchedule SCHEDULE item.
-
-SCHEDULE will automagically generate this checker as a default, but this module is retained as an example
-in case some schedule item needs special consideration.
-
-Note that $value is NOT the value to be checked; see Foswiki::Configure::Checkers::Tasks::ScheduleChecker for details.
+---+ package Foswiki::Configure::UIs::TASKS
+Configure GUI
 
 =cut
 
-package Foswiki::Configure::Checkers::CleanupSchedule;
-use base 'Foswiki::Configure::Checkers::Tasks::ScheduleChecker';
-
-use Foswiki::Configure::Checker;
-
-
-=pod
-
----++ ObjectMethod check( $valueObject ) -> $errorString
-Validates the CleanupSchedule item for the configure GUI
-   * =$valueObject= - configure value object
-
-Returns empty string if OK, error string with any errors
-
-=cut
-
-sub check {
-    my $this = shift;
-    my $value = shift;
-
-    return $this->SUPER::check( $value );
-}
+package Foswiki::Configure::UIs::TASKS;
+use base 'Foswiki::Configure::UIs::Section';
 
 1;
 
