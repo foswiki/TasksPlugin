@@ -14,20 +14,20 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
 # As per the GPL, removal of this notice is prohibited.
-package TWiki::Configure::Checkers::ErrorFileName;
-use base 'TWiki::Configure::Checker';
+package Foswiki::Configure::Checkers::ErrorFileName;
+use base 'Foswiki::Configure::Checker';
 
 use strict;
 
-use TWiki::Configure::Checker;
-use TWiki::Configure::Load;
+use Foswiki::Configure::Checker;
+use Foswiki::Configure::Load;
 
 sub check {
     my $this = shift;
 
-    my $logFile = $TWiki::cfg{ErrorFileName} || "";
+    my $logFile = $Foswiki::cfg{ErrorFileName} || "";
     $logFile =~ s/%DATE%/DATE/;
-    TWiki::Configure::Load::expandValue($logFile);
+    Foswiki::Configure::Load::expandValue($logFile);
     my $e = $this->checkCanCreateFile( $logFile );
     $e = $this->ERROR($e) if $e;
     return $e;

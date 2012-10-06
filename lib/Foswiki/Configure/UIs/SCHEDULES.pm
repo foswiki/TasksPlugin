@@ -1,5 +1,5 @@
-package TWiki::Configure::UIs::SCHEDULES;
-use base 'TWiki::Configure::UIs::Section';
+package Foswiki::Configure::UIs::SCHEDULES;
+use base 'Foswiki::Configure::UIs::Section';
 
 use strict;
 

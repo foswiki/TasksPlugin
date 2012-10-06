@@ -11,14 +11,14 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
 # As per the GPL, removal of this notice is prohibited.
-package TWiki::Configure::ScheduleChecker;
+package Foswiki::Configure::ScheduleChecker;
 
 use warnings;
 use strict;
 
-use TWiki::Configure::Checker;
-use base 'TWiki::Configure::Checker';
-use TWiki::Configure::Load;
+use Foswiki::Configure::Checker;
+use base 'Foswiki::Configure::Checker';
+use Foswiki::Configure::Load;
 
 # Validate a crontab schedule checker for periodic events
 # This is roughly vixie-cron, the perl version Schedule::Cron
@@ -201,11 +201,11 @@ sub checkSchedule {
 
 sub check {
     my $this = shift;
-    my $value = shift; # This can come from $TWiki::cfg{FieldName}
+    my $value = shift; # This can come from $Foswiki::cfg{FieldName}
 
     # Expand any references to other variables
 
-    TWiki::Configure::Load::expandValue($value);
+    Foswiki::Configure::Load::expandValue($value);
 
     my $sts = checkSchedule( $value );
 

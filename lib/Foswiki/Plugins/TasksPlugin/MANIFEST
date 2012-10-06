@@ -1,6 +1,26 @@
-!noci
-data/System/TasksPlugin.txt 0644 Documentation page
-data/System/VarEXAMPLETAG.txt 0644 Tag documentation
-data/Sandbox/PluginTestTasksPlugin.txt 0644 Examples
-lib/Foswiki/Plugins/TasksPlugin.pm 0444 Perl module
-lib/Foswiki/Plugins/TasksPlugin/Config.spec 0444 Configuration
+Valuer.pm.patch
+tools/experimental_tick_twiki.pl
+data/System/TasksPlugin.txt
+data/System/VarEXAMPLETAG.txt
+data/System/PeriodicTasks.txt
+data/Sandbox/PluginTestTasksPlugin.txt
+Schedule-Cron.patch.1
+test/unit/TasksPlugin/TasksPluginTests.pm
+test/unit/TasksPlugin/TasksPluginSuite.pm
+lib/Foswiki/Plugins/TasksPlugin/Config.spec
+lib/Foswiki/Plugins/TasksPlugin/MANIFEST
+lib/Foswiki/Plugins/TasksPlugin/DEPENDENCIES
+lib/Foswiki/Plugins/TasksPlugin/build.pl
+lib/Foswiki/Plugins/TasksPlugin.pm
+lib/Foswiki/Plugins/PeriodicTestPlugin.pm
+lib/Foswiki/Configure/Checkers/CleanupSchedule.pm
+lib/Foswiki/Configure/Checkers/ErrorFileName.pm
+lib/Foswiki/Configure/Types/SCHEDULE.pm
+lib/Foswiki/Configure/ScheduleChecker.pm
+lib/Foswiki/Configure/Pluggables/SCHEDULES.pm
+lib/Foswiki/Configure/UIs/SCHEDULES.pm
+lib/Foswiki/Contrib/PeriodicTasks/Config.spec
+lib/Foswiki/Contrib/PeriodicTasks/Frobulator.spec
+lib/Foswiki/Contrib/PeriodicTasks/MailerSchedules.spec
+pub/System/PeriodicTasks/PeriodicTasksGui.3.png
+pub/System/PeriodicTasks/PeriodicTasksGui.1.png

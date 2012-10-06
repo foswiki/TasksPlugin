@@ -26,13 +26,13 @@ Plugin used to test the Periodic Events Daemon
 
 =cut
 
-package TWiki::Plugins::PeriodicTestPlugin;
+package Foswiki::Plugins::PeriodicTestPlugin;
 
 # Always use strict to enforce variable scoping
 use strict;
 
-require TWiki::Func;    # The plugins API
-require TWiki::Plugins; # For the API version
+require Foswiki::Func;    # The plugins API
+require Foswiki::Plugins; # For the API version
 
 use vars qw( $VERSION $RELEASE $SHORTDESCRIPTION $debug $pluginName $NO_PREFS_IN_TOPIC );
 
@@ -62,12 +62,12 @@ sub initPlugin {
     my( $topic, $web, $user, $installWeb ) = @_;
 
     # check for Plugins.pm versions
-    if( $TWiki::Plugins::VERSION < 1.026 ) {
-        TWiki::Func::writeWarning( "Version mismatch between $pluginName and Plugins.pm" );
+    if( $Foswiki::Plugins::VERSION < 1.026 ) {
+        Foswiki::Func::writeWarning( "Version mismatch between $pluginName and Plugins.pm" );
         return 0;
     }
 
-#    TWiki::Func::registerTagHandler( 'EXAMPLETAG', \&_EXAMPLETAG );
+#    Foswiki::Func::registerTagHandler( 'EXAMPLETAG', \&_EXAMPLETAG );
 
     # The following is only necessary if you have periodic tasks that you want to run on a
     # non-default schedule and/or as independent forks.
@@ -82,13 +82,13 @@ sub initPlugin {
     #
     # Register periodic tasks if we are running in the daemon.  These APIs don't exist in the webserver.
 
-    if( TWiki::Func::getContext()->{Periodic_Task} ) {
+    if( Foswiki::Func::getContext()->{Periodic_Task} ) {
 
 	# A standard synchronous task with a programable schedule
 
-	TWiki::Func::AddTask( 'cronTask1',  # task name
+	Foswiki::Func::AddTask( 'cronTask1',  # task name
 				  \&cronTask,   # Subroutine to run
-				  $TWiki::cfg{Plugins}{$pluginName}{Schedule}, # Schedule in crontab format
+				  $Foswiki::cfg{Plugins}{$pluginName}{Schedule}, # Schedule in crontab format
 				                # May also be undef for the default plugin cleanup schedule
 				                # or a preference name
 				  1, 4, 19,     # Arguments for routine
@@ -96,9 +96,9 @@ sub initPlugin {
 
 	# This schedules an asynchronous task - presumably because it runs for a long time.
 
-	TWiki::Func::AddAsyncTask( 'Mail',  # task name
+	Foswiki::Func::AddAsyncTask( 'Mail',  # task name
 				  \&cronTask,   # Subroutine to run
-				  $TWiki::cfg{MailerSchedule}, # Schedule in crontab format
+				  $Foswiki::cfg{MailerSchedule}, # Schedule in crontab format
 				                # May also be undef for the default plugin cleanup schedule
 				                # or a preference name
 				  "runmail", "Mailer.Log",     # Arguments for routine
@@ -106,7 +106,7 @@ sub initPlugin {
 
 	# Another synchronous task
 
-	TWiki::Func::AddTask( 'News',  # task name
+	Foswiki::Func::AddTask( 'News',  # task name
 				  \&cronTask,   # Subroutine to run
 				  "18 20 * Jul-Sep Sun,Sat", # Schedule in crontab format
 				                # May also be undef for the default plugin cleanup schedule
@@ -117,11 +117,11 @@ sub initPlugin {
 	# A couple more asynchronous tasks on the same schedule.
 	# You can see (and kill) these with ps and kill to see what happens.
 
-	TWiki::Func::AddAsyncTask( 'Forker-1', \&forktest, "*/2 * * * * 23", 'p1', 'p2' );
-	TWiki::Func::AddAsyncTask( 'Forker-2', \&forktest, "*/2 * * * * 23", 'p1', 'p2' );
+	Foswiki::Func::AddAsyncTask( 'Forker-1', \&forktest, "*/2 * * * * 23", 'p1', 'p2' );
+	Foswiki::Func::AddAsyncTask( 'Forker-2', \&forktest, "*/2 * * * * 23", 'p1', 'p2' );
 
 	# Because the daemon is a persistent environment, you may be sensitive to configuration
-	# changes.  TWiki::cfg is always up-to-date (after some delay), but if you have 
+	# changes.  Foswiki::cfg is always up-to-date (after some delay), but if you have 
 	# cached a value, you need to update your cache with the latest value(s).
 	#
 	# This is an issue for schedules (because they were passed to the DAEMON, for
@@ -139,7 +139,7 @@ sub initPlugin {
 
 #	RegisterConfigChangeHandler( '{CleanupSchedule}', \&reconfigHandler, 'Foo' );
 
-	TWiki::Func::RegisterConfigChangeHandler( [ '{Plugins}{$pluginName}{Schedule}',
+	Foswiki::Func::RegisterConfigChangeHandler( [ '{Plugins}{$pluginName}{Schedule}',
 						    '{CleanupSchedule}',
 						    '{MailerSchedule}',
 						    '{EnableMailer}',
@@ -164,10 +164,10 @@ sub initPlugin {
 sub cronTask {
     my( $name, $session, $arg1, $arg2, $arg3 ) = @_;
 
-    TWiki::Func::writeDebug( "$pluginName: $name: cronTask( $arg1, $arg2, $arg3 )" );
+    Foswiki::Func::writeDebug( "$pluginName: $name: cronTask( $arg1, $arg2, $arg3 )" );
 
-    TWiki::Func::writeDebug( "$name - Nextrun " . (scalar localtime( TWiki::Func::NextRuntime( $name ) )) );
-    TWiki::Func::writeDebug( "Forker-1 - Nextrun " . (scalar localtime( TWiki::Func::NextRuntime( 'TWiki::Periodic::Forker-1' ) )) );
+    Foswiki::Func::writeDebug( "$name - Nextrun " . (scalar localtime( Foswiki::Func::NextRuntime( $name ) )) );
+    Foswiki::Func::writeDebug( "Forker-1 - Nextrun " . (scalar localtime( Foswiki::Func::NextRuntime( 'Foswiki::Periodic::Forker-1' ) )) );
 
     # Always return success (like a command)
     return 0;
@@ -185,19 +185,19 @@ sub forktest {
 
     # Verify that TWiki API is active
 
-    TWiki::Func::writeDebug( "$name: " . TWiki::Func::getScriptUrl('Main', 'WebHome', 'view', p1=>'cat', p2 => '&', p3 => 'mouse' ) );
+    Foswiki::Func::writeDebug( "$name: " . Foswiki::Func::getScriptUrl('Main', 'WebHome', 'view', p1=>'cat', p2 => '&', p3 => 'mouse' ) );
 
-    TWiki::Func::writeWarning( "$name: " . "Webs in danger: " . join( ', ', TWiki::Func::getListOfWebs("user,public,allowed") ) );
+    Foswiki::Func::writeWarning( "$name: " . "Webs in danger: " . join( ', ', Foswiki::Func::getListOfWebs("user,public,allowed") ) );
 
-    my( $meta, $text ) = TWiki::Func::readTopic( "Main", "WebHome" );
-    TWiki::Func::writeDebug( "$name: " . 'Yea: ' . join( "\\n", ((split( /\n+/, $text, 3) )[0..1]) ) . ' verily' );
+    my( $meta, $text ) = Foswiki::Func::readTopic( "Main", "WebHome" );
+    Foswiki::Func::writeDebug( "$name: " . 'Yea: ' . join( "\\n", ((split( /\n+/, $text, 3) )[0..1]) ) . ' verily' );
 
     # Sleep long enough for ps to verify that we are running independently
     # Also long enough for a manual kill -TERM (to verify that's reported properly)
 
     sleep 60;
 
-    return ($name eq 'TWiki::Periodic::Forker-1'? 47 : 0);
+    return ($name eq 'Foswiki::Periodic::Forker-1'? 47 : 0);
 }
 
 # Handler for reconfiguration events.
@@ -209,7 +209,7 @@ sub forktest {
 # Note that a change is signalled when an item is added, removed, or its value changed.
 #
 # Multiple items can come in one report.  Changes is a hash of new values keyed by name,
-# where the name is the %TWiki::cfg hash reference.  E.g. {foo}{bar}
+# where the name is the %Foswiki::cfg hash reference.  E.g. {foo}{bar}
 #
 # This sample is rather more complex than a typical plugin would need.
 
@@ -220,21 +220,21 @@ sub reconfigHandler {
 	my $value = $changes->{$change};
 	({
 	     '{Plugins}{$pluginName}{Schedule}' => sub {
-		                                           TWiki::Func::ReplaceSchedule( 'cronTask1', $value );
+		                                           Foswiki::Func::ReplaceSchedule( 'cronTask1', $value );
 						       },
 	     '{CleanupSchedule}' => sub { # Note this is the default if any other schedule is undefined
-		                            TWiki::Func::ReplaceSchedule( 'cronTask1', undef ) unless( defined $TWiki::cfg{Plugins}{$pluginName}{Schedule} );
-		                            TWiki::Func::ReplaceSchedule( 'Mail', undef ) unless( defined $TWiki::cfg{MailerSchedule} );
+		                            Foswiki::Func::ReplaceSchedule( 'cronTask1', undef ) unless( defined $Foswiki::cfg{Plugins}{$pluginName}{Schedule} );
+		                            Foswiki::Func::ReplaceSchedule( 'Mail', undef ) unless( defined $Foswiki::cfg{MailerSchedule} );
 
 						   },
 	     '{MailerSchedule}' => sub {
-		                            TWiki::Func::ReplaceSchedule( 'Mail', $value );
+		                            Foswiki::Func::ReplaceSchedule( 'Mail', $value );
 					},
 	     '{EnableMailer}' => sub {
 		                         if( $value ) {
-					     TWiki::Func::AddAsyncTask( 'Mail', \&cronTask, $TWiki::cfg{MailerSchedule}, "runmail-async", "Mailer.Log" );
+					     Foswiki::Func::AddAsyncTask( 'Mail', \&cronTask, $Foswiki::cfg{MailerSchedule}, "runmail-async", "Mailer.Log" );
 					 } else {
-					     TWiki::Func::DeleteTask( 'Mail' );
+					     Foswiki::Func::DeleteTask( 'Mail' );
 					 }
 				     },
 	}->{$change} || sub { })->($change, $value);
@@ -246,7 +246,7 @@ sub reconfigHandler {
 # Task run on standard plugin cleanup schedule
 #
 # You need only define this subroutine for it to be called on the admin-defined schedule
-# $TWiki::cfg{CleanupSchedule}
+# $Foswiki::cfg{CleanupSchedule}
 #
 # For a simple plugin, this is all you need.  This sample code simply deletes old files
 # in the working area.  The age is configured by a web preference or a config item.
@@ -256,15 +256,15 @@ sub reconfigHandler {
 sub pluginCleanup {
     my( $session, $now ) = @_;
 
-    TWiki::Func::writeDebug( "$pluginName: Running pluginCleanup: $now" );
+    Foswiki::Func::writeDebug( "$pluginName: Running pluginCleanup: $now" );
 
-    my $wa = TWiki::Func::getWorkArea($pluginName);
+    my $wa = Foswiki::Func::getWorkArea($pluginName);
 
     # Maximum age for files before they are deleted.
     # Note that updating MaxAge in configure will be reflected here without any code in the plugin.
 
-    my $maxage =  TWiki::Func::getPreferencesValue( "\U$pluginName\E_MAXAGE" ) ||
-                  $TWiki::cfg{Plugins}{$pluginName}{MaxAge} || 24;
+    my $maxage =  Foswiki::Func::getPreferencesValue( "\U$pluginName\E_MAXAGE" ) ||
+                  $Foswiki::cfg{Plugins}{$pluginName}{MaxAge} || 24;
 
     my $oldest = $now - ($maxage*60*60);
 
@@ -276,7 +276,7 @@ sub pluginCleanup {
 	if( $uid == $> && $gid == $)+0 && $mtime < $oldest) {
 	    $wf =~ /^(.*$)$/;               # Untaint so -T works
 	    $wf = $1;
-	    unlink $wf or TWiki::Func::writeWarning( "Unable to delete $wa: $!" );
+	    unlink $wf or Foswiki::Func::writeWarning( "Unable to delete $wa: $!" );
 	}
     }
 

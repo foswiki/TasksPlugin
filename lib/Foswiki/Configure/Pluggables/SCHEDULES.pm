@@ -3,11 +3,11 @@
 #
 # Full notice at end of file.
 
-package Foswiki::Configure::SCHEDULES;
+package Foswiki::Configure::Pluggables::SCHEDULES;
 
 use strict;
 
-use Foswiki::Configure::TWikiCfg;
+use Foswiki::Configure::FoswikiCfg;
 use Foswiki::Configure::Section;
 use Foswiki::Configure::Value;
 use Foswiki::Configure::Pluggable;
@@ -37,7 +37,7 @@ use File::Basename;
 #
 # Files found are processed into a sub-section of the Periodic Tasks section.
 #
-# The algorithm is very similar to TWikiCfg.pm;s _loadSpecsFrom routine.
+# The algorithm is very similar to FoswikiCfg.pm;s _loadSpecsFrom routine.
 # So similar that I call a couple of private routines rather than copy
 # them here.
 #
@@ -88,8 +88,8 @@ sub new {
 	    if( $l =~ /^#\s*\*\*\s*([A-Z]+)\s*(.*?)\s*\*\*\s*$/ ) {
 		# ** TYPENAME Options **
 		my( $typename, $options ) = ($1, $2);
-		Foswiki::Configure::TWikiCfg::pusht(\@settings, $open) if $open;
-		$open = new Foswiki::Configure::Value(typename=>$typename, opts=>$options, parent=>$this );
+		Foswiki::Configure::FoswikiCfg::_pusht(\@settings, $open) if $open;
+		$open = new Foswiki::Configure::Value($typename, opts=>$options, parent=>$this );
 		if( length( $desc ) ) {
 		    $open->set('desc', $desc );
 		    $desc = '';
@@ -98,7 +98,7 @@ sub new {
 		#? $Foswiki::cfg{keys} =
 		my $keys = $2;
 		if ($open && $open->isa('SectionMarker')) {
-		    Foswiki::Configure::TWikiCfg::pusht(\@settings, $open);
+		    Foswiki::Configure::FoswikiCfg::_pusht(\@settings, $open);
 		    $open = undef;
 		}
 		# If there is already a UI object for
@@ -107,7 +107,7 @@ sub new {
 		# check what we're adding.
 		if (!$open) {
 		    next if $this->getValueObject($keys);
-		    next if (Foswiki::Configure::TWikiCfg::_getValueObject($keys, \@settings));
+		    next if (Foswiki::Configure::FoswikiCfg::_getValueObject($keys, \@settings));
 		    # This is an untyped value
 		    $open = new Foswiki::Configure::Value();
 		    if( length( $desc ) ) {
@@ -116,7 +116,7 @@ sub new {
 		    }
 		}
 		$open->set(keys => $keys);
-		Foswiki::Configure::TWikiCfg::pusht(\@settings, $open);
+		Foswiki::Configure::FoswikiCfg::_pusht(\@settings, $open);
 		$open = undef;
 	    } elsif( $l =~ /^#\s*\*([A-Z]+)\*/ ) {
 		# * PLUGIN
@@ -124,7 +124,7 @@ sub new {
 		my $pluggable = $1;
 		my $p = Foswiki::Configure::Pluggable::load($pluggable);
 		if ($p) {
-		    Foswiki::Configure::TWikiCfg::pusht(\@settings, $open) if $open;
+		    Foswiki::Configure::FoswikiCfg::_pusht(\@settings, $open) if $open;
 		    $open = $p;
 		} elsif ($open) {
 		    $l =~ s/^#\s?//;
@@ -145,8 +145,8 @@ sub new {
 	    }
 	}
 	close($aos);
-	Foswiki::Configure::TWikiCfg::pusht(\@settings, $open) if $open;
-	Foswiki::Configure::TWikiCfg::_extractSections(\@settings, $this );
+	Foswiki::Configure::FoswikiCfg::_pusht(\@settings, $open) if $open;
+	Foswiki::Configure::FoswikiCfg::_extractSections(\@settings, $this );
     }
     closedir( $dh );
     return $this;

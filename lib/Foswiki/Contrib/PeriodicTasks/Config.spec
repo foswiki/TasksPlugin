@@ -19,14 +19,14 @@
 # </p>
 # **STRING 20**
 # WikiName of user under which periodic tasks are scheduled.
-$TWiki::cfg{Periodic}{UserName} = $TWiki::cfg{AdminUserWikiName};
+$Foswiki::cfg{Periodic}{UserName} = $Foswiki::cfg{AdminUserWikiName};
 # **OCTAL EXPERT**
 # File security (umask) for files written by periodic tasks.  Should generally prevent world access.
-$TWiki::cfg{Periodic}{Umask} = 007;
+$Foswiki::cfg{Periodic}{Umask} = 007;
 # **PATH**
 # Log file for serious errors (what would go to the webserver error log if running under a webserver). %DATE% gets expanded
 # to YYYYMM (year, month), allowing you to rotate logs.
-$TWiki::cfg{ErrorFileName} = '$TWiki::cfg{DataDir}/error%DATE%.txt';
+$Foswiki::cfg{ErrorFileName} = '$Foswiki::cfg{DataDir}/error%DATE%.txt';
 #---++ Built-in Periodic tasks
 # Periodic tasks included in the base product.
 #
@@ -36,10 +36,10 @@ $TWiki::cfg{ErrorFileName} = '$TWiki::cfg{DataDir}/error%DATE%.txt';
 # Also the cleanup schedule used by simple plugins.
 # <br />
 # The default is to run at 01:15:14 every 3 days.
-$TWiki::cfg{CleanupSchedule} = '1 15 1-31/3 * * 14';
+$Foswiki::cfg{CleanupSchedule} = '1 15 1-31/3 * * 14';
 # **SCHEDULE EXPERT**
 # Interval at which the daemon checks for configuration changes.  
-$TWiki::cfg{Periodic}{ReConfigSchedule} = '*/5 * * * * 17';
+$Foswiki::cfg{Periodic}{ReConfigSchedule} = '*/5 * * * * 17';
 ##
 ## KEEP THIS BLOCK LAST.
 ## 

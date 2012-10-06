@@ -2,20 +2,20 @@
 #
 # Full notice at end of file
 
-package TWiki::Configure::Checkers::CleanupSchedule;
+package Foswiki::Configure::Checkers::CleanupSchedule;
 
 use warnings;
 use strict;
 
-use TWiki::Configure::Checker;
+use Foswiki::Configure::Checker;
 
-use TWiki::Configure::ScheduleChecker;
-use base 'TWiki::Configure::ScheduleChecker';
+use Foswiki::Configure::ScheduleChecker;
+use base 'Foswiki::Configure::ScheduleChecker';
 
 sub check {
     my $this = shift;
 
-    return $this->SUPER::check( $TWiki::cfg{CleanupSchedule} );
+    return $this->SUPER::check( $Foswiki::cfg{CleanupSchedule} );
 }
 
 1;

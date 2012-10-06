@@ -117,9 +117,9 @@ if( $> == 0 || $< == 0 ) {
 die "Must not run under root - are permissions setuid/setgid?\n"
   if( $> == 0 || $< == 0 || $(+0 == 0 || $)+0 == 0 );
 
-use TWiki;
-use TWiki::Func;
-use TWiki::LoginManager;
+use Foswiki;
+use Foswiki::Func;
+use Foswiki::LoginManager;
 
 ### Debugging
 # use Data::Dumper; $Data::Dumper::Sortkeys = 1;
@@ -152,7 +152,7 @@ my $cfgfilename = 'LocalSite.cfg';
 our $cfgModTime = (stat $INC{$cfgfilename})[9] or die "Failed to stat $cfgfilename\n";
 our %cfgModRegistry;
 
-my $umask = $TWiki::cfg{Periodic}{Umask};
+my $umask = $Foswiki::cfg{Periodic}{Umask};
 $umask = 007 unless( defined $umask );
 umask( $umask );
 
@@ -178,7 +178,7 @@ if( exists $opts{v} ) {
 if( $opts{d} ) {
     $debug = 1;
 }
-$opts{p} ||= ( $TWiki::cfg{WorkingDir} . '/' || 'working/' ) . 'tick_daemon.pid';
+$opts{p} ||= ( $Foswiki::cfg{WorkingDir} . '/' || 'working/' ) . 'tick_daemon.pid';
 
 # Dispatch commands
 
@@ -368,7 +368,7 @@ sub tprint {
 sub eprint {
     print STDERR $_[0], "\n";
 }
-# Parallel to TWiki::Func::writeWarning (including TWiki::writeWarning)
+# Parallel to Foswiki::Func::writeWarning (including Foswiki::writeWarning)
 # (Could be a core function)
 sub writeError {
     # STDERR is probably /dev/null
@@ -377,8 +377,8 @@ sub writeError {
     # Func::writeError
     my( $message ) = @_;
     $message = "(".caller().") " . $message;
-    # TWiki::writeError
-    $TWiki::Plugins::SESSION->_writeReport( $TWiki::cfg{ErrorFileName}, $message  );
+    # Foswiki::writeError
+    $Foswiki::Plugins::SESSION->_writeReport( $Foswiki::cfg{ErrorFileName}, $message  );
 }
 
 # Break multi-line messages apart, adding prefix & removing \n
@@ -397,7 +397,7 @@ sub logLines {
 sub cronlog {
     my( $level, $msg ) = @_;
 
-    if( !$TWiki::Plugins::SESSION || $debug ) {
+    if( !$Foswiki::Plugins::SESSION || $debug ) {
 
 	# Logging to terminal
 
@@ -424,10 +424,10 @@ sub cronlog {
 	    unless( $opts{v} <= -1 ) {
 		$msg = curse( $msg );
 	    }
-	    logLines( "Periodic Task[$$](I): ", $msg, \&TWiki::Func::writeDebug );
+	    logLines( "Periodic Task[$$](I): ", $msg, \&Foswiki::Func::writeDebug );
 	}
     } elsif( $level == WARN ) {
-    	logLines( "Periodic Task[$$](W): ", $msg, \&TWiki::Func::writeWarning );
+    	logLines( "Periodic Task[$$](W): ", $msg, \&Foswiki::Func::writeWarning );
     } else {
 	logLines( "Periodic Task[$$](E): ", $msg, \&writeError );
     }
@@ -461,14 +461,14 @@ sub initWiki {
 
     $cron->clean_timetable();
 
-    # Export the API to the TWiki::Func:: namespace for consistency
+    # Export the API to the Foswiki::Func:: namespace for consistency
     # Do everything twice to suppress "Name used only once" errors
 
     foreach my $api (qw /AddTask AddAsyncTask DeleteTask NextRuntime ReplaceSchedule RegisterConfigChangeHandler/) {
 	no strict 'refs';
 	no warnings 'redefine';
-	*{ "TWiki::Func::$api" } = \&{ "TWiki::Periodic::$api" };
-	*{ "TWiki::Func::$api" } = \&{ "TWiki::Periodic::$api" };
+	*{ "Foswiki::Func::$api" } = \&{ "Foswiki::Periodic::$api" };
+	*{ "Foswiki::Func::$api" } = \&{ "Foswiki::Periodic::$api" };
 	use warnings 'redefine';
 	use strict 'refs';
     }
@@ -477,15 +477,15 @@ sub initWiki {
 
     # Plugins will register their tasks as they initialize;
 
-    my $twiki = new TWiki( $TWiki::cfg{Periodic}{UserName}, undef, {
+    my $twiki = new TWiki( $Foswiki::cfg{Periodic}{UserName}, undef, {
 								    command_line => 1,
 								    Periodic_Task => 1,
 								   } );
-    $TWiki::Plugins::SESSION = $twiki;
+    $Foswiki::Plugins::SESSION = $twiki;
 
     # Intercept STDERR -- N.B. Requires session because otherwise prints to STDERR...
 
-    tie *STDERR, 'TWiki::STDERR', sub {
+    tie *STDERR, 'Foswiki::STDERR', sub {
 	                                  cronlog( ERROR, @_ );
 					  return 1;
 				      };
@@ -507,10 +507,10 @@ sub initWiki {
     # Also schedule a task to handle configuration file changes.
     # Register for changes on items we cache.
 
-    package TWiki::Periodic;
+    package Foswiki::Periodic;
     AddTask( 'TickTock', \&main::tick_twiki, undef, $opts );
 
-    AddTask( 'ReConfig', \&main::check_config, ($TWiki::cfg{Periodic}{ReConfigSchedule} || "*/5 * * * * 17"), 
+    AddTask( 'ReConfig', \&main::check_config, ($Foswiki::cfg{Periodic}{ReConfigSchedule} || "*/5 * * * * 17"), 
 	                                       $INC{$cfgfilename}, \$cfgModTime, \%cfgModRegistry );
 
     RegisterConfigChangeHandler( '{CleanupSchedule}', \&main::reconfig, 'Foo' );
@@ -536,13 +536,13 @@ sub reconfig {
 	my $value = $changes->{$change};
 	({
 	     '{CleanupSchedule}' => sub {
-		                            package TWiki::Periodic;
+		                            package Foswiki::Periodic;
 					    ReplaceSchedule( 'TickTock', undef );
 					    package main;
 				        },
 	     '{Periodic}{ReConfigSchedule}' => sub {
-		                                       package TWiki::Periodic;
-						       ReplaceSchedule( 'ReConfig', ($TWiki::cfg{Periodic}{ReConfigSchedule} || "*/5 * * * * 17" ) );
+		                                       package Foswiki::Periodic;
+						       ReplaceSchedule( 'ReConfig', ($Foswiki::cfg{Periodic}{ReConfigSchedule} || "*/5 * * * * 17" ) );
 						       package main;
 						   },
 	     '{Periodic}{Umask}' => sub {
@@ -579,8 +579,8 @@ sub check_config {
 
     # Re-read the file, catching any syntax or other errors
 
-    my %oldcfg = %TWiki::cfg;
-    %TWiki::cfg = ();
+    my %oldcfg = %Foswiki::cfg;
+    %Foswiki::cfg = ();
 
     eval {
 	unless( my $sts = do $cfgfile ) {
@@ -589,7 +589,7 @@ sub check_config {
 	    die "Unsuccessful status from $cfgfile\n" unless( $sts );
 	};
     }; if( $@ ) {
-	$TWiki::cfg = %oldcfg;
+	$Foswiki::cfg = %oldcfg;
 	cronlog( WARN, "Continuing with previous configuration: @!\n" );
 	return 0;
     }
@@ -601,7 +601,7 @@ sub check_config {
 	my %changed;
 	foreach my $item (@{$reg->{items}}) {
 	    my $oval = eval "\$oldcfg$item";
-	    my $nval = eval "\$TWiki::cfg$item";
+	    my $nval = eval "\$Foswiki::cfg$item";
 	    $changed{$item} = $nval if( (defined($oval) xor defined($nval))
 				       || defined($nval) && $oval ne $nval );
 	}
@@ -630,7 +630,7 @@ sub tick_twiki {
 
 	cronlog( INFO, "Expire sessions" );
 
-	TWiki::LoginManager::expireDeadSessions();
+	Foswiki::LoginManager::expireDeadSessions();
     }
 
     my $now = time();
@@ -664,7 +664,7 @@ sub tick_twiki {
 	foreach my $plugin ( @{$twiki->{plugins}{plugins}} ) {
 	    next if( $plugin->{disabled} );
 
-	    local $TWiki::Plugins::SESSION = $twiki;
+	    local $Foswiki::Plugins::SESSION = $twiki;
 
 	    my $cleanup = $plugin->{module} . '::pluginCleanup';
 
@@ -727,7 +727,7 @@ sub ForkTask {
 		    }
 		}
 		open STDERR, '>&STDOUT' or die "Can't dup stdout: $!";
-		tie *STDERR, 'TWiki::STDERR', sub {
+		tie *STDERR, 'Foswiki::STDERR', sub {
 		                                      cronlog( ERROR, join( '', @_ ) );
 						      return 1;
 						  };
@@ -738,8 +738,8 @@ sub ForkTask {
 		foreach my $api (qw /AddTask AddAsyncTask DeleteTask ReplaceSchedule RegisterConfigChangeHandler/) {
 		    no strict 'refs';
 		    no warnings 'redefine';
-		    *{ "TWiki::Func::$api" } = sub {
-                                                       die "$name [$$] TWiki::Func::$api can not be called from an asynchronous task" .
+		    *{ "Foswiki::Func::$api" } = sub {
+                                                       die "$name [$$] Foswiki::Func::$api can not be called from an asynchronous task" .
 							 ($opts{v} <=0 ? sprintf( ' at %s::%s line %u', (caller)[0,1,2] ) : '') . "\n";
 						   };
 		    use warnings 'redefine';
@@ -785,7 +785,7 @@ sub REAPER {
 ######################################################################
 # API for the rest of TWiki
 
-package TWiki::Periodic;
+package Foswiki::Periodic;
 
 # Add a task to the schedule
 # Called by plugins and extensions
@@ -809,11 +809,11 @@ sub AddTask {
     if( defined $schedule && $schedule !~ /\s/ ) {
 	# Single word, fetch a preference for the schedule
 
-	my $sched = TWiki::Func::getPreferencesValue( $schedule );
+	my $sched = Foswiki::Func::getPreferencesValue( $schedule );
 	die( "Missing schedule preference: $sched" ) unless( defined $sched );
 	$schedule = $sched;
     }
-    $schedule = $TWiki::cfg{CleanupSchedule} || '0 0 * * 0' unless( defined $schedule );
+    $schedule = $Foswiki::cfg{CleanupSchedule} || '0 0 * * 0' unless( defined $schedule );
 
     main::cronlog( main::INFO, "AddTask: $schedule $name( " . join( ',', @_ ) . ' )' );
 
@@ -821,7 +821,7 @@ sub AddTask {
 
     return $cron->add_entry( $schedule, { subroutine => $sub,
 					  args => [ $name,
-						    $TWiki::Plugins::SESSION,
+						    $Foswiki::Plugins::SESSION,
 						    @_ ],
 					 } );
 }
@@ -895,11 +895,11 @@ sub ReplaceSchedule {
     if( defined $schedule && $schedule !~ /\s/ ) {
 	# Single word, fetch a preference for the schedule
 
-	my $sched = TWiki::Func::getPreferencesValue( $schedule );
+	my $sched = Foswiki::Func::getPreferencesValue( $schedule );
 	die( "Missing schedule preference: $sched" ) unless( defined $sched );
 	$schedule = $sched;
     }
-    $schedule = $TWiki::cfg{CleanupSchedule} || '0 0 * * 0' unless( defined $schedule );
+    $schedule = $Foswiki::cfg{CleanupSchedule} || '0 0 * * 0' unless( defined $schedule );
 
     my $cron = $main::cronhandle;
 
@@ -935,7 +935,7 @@ sub ReplaceSchedule {
 # with it.
 #
 # You don't need to do this if you simply read a config
-# item from TWiki::cfg every time you need it.
+# item from Foswiki::cfg every time you need it.
 #
 # Only one registration per calling package is permitted, but any number of variables can be monitored.
 # (More than one will replace previous registration, as will an empty list.)
@@ -1016,7 +1016,7 @@ sub sigHUP {
     # Trip the debugger (if loaded)
 
     # Write queue to debug file
-    logLines( "Periodic Task[$$]I): ", statusText(), \&TWiki::Func::writeDebug );
+    logLines( "Periodic Task[$$]I): ", statusText(), \&Foswiki::Func::writeDebug );
 }
 
 # Print status on terminal for ^C
@@ -1038,7 +1038,7 @@ sub sigTERM {
 #### **kill kids
     # If we're debugging, we're not a daemon (usually)
 
-    TWiki::Func::writeDebug( "Periodic Task[$$]: Daemon stopped by signal" ) if( $debug );
+    Foswiki::Func::writeDebug( "Periodic Task[$$]: Daemon stopped by signal" ) if( $debug );
 
     exit 0;
 }
@@ -1089,7 +1089,7 @@ Files:
   /etc/init.d/$pname is a softlink to this script
   $0_bin is a softlink to the TWiki binary directory ($bindir)
   $bindir/setlib.cfg  Defines twiki environment
-  $TWiki::cfg{DataDir} contains standard log files
+  $Foswiki::cfg{DataDir} contains standard log files
   $opts{p}/tick_daemon.pid ( or -p )
               pid of daemon
 
@@ -1115,7 +1115,7 @@ USAGE
 
 # Logging inteceptor for STDERR (and warn, and unhandled die)
 
-package TWiki::STDERR;
+package Foswiki::STDERR;
 
 # tie *STDERR, (*LOGFILE), sub { my $string = shift; do the logging }
 #

@@ -2,12 +2,12 @@
 #
 # Full notice at end of file
 
-package TWiki::Configure::Types::SCHEDULE;
+package Foswiki::Configure::Types::SCHEDULE;
 
 use warnings;
 use strict;
 
-use base 'TWiki::Configure::Type';
+use base 'Foswiki::Configure::Type';
 
 =pod
 
@@ -20,17 +20,17 @@ comprehensibility and in error avoidance.
 See lib/TWiki/Contrib/PeriodicTasks/Config.spec for the on-screen
 text and variable definitions.
 
-The corresponding checker abstract class is TWiki::Configure::ScheduleChecker.
+The corresponding checker abstract class is Foswiki::Configure::ScheduleChecker.
 
 Use Twiki::Configure::Checkers::CleanupSchedule as a template for
 creating an instance for additional SCHEDULE variables.  Name
-yours TWiki::Configure::Checkers::Plugins::<plugin-name>::<YourSchedule>.pm
+yours Foswiki::Configure::Checkers::Plugins::<plugin-name>::<YourSchedule>.pm
 It's only a dozen lines of perl, and you only need to change the package
-name and the TWiki::cfg key to customize it.
+name and the Foswiki::cfg key to customize it.
 
 Loose ends:
 
-o Requires a patch in TWiki::Configure::Valuer
+o Requires a patch in Foswiki::Configure::Valuer
 o We don't currently handle */interval on-screen as I don't have an easy html metaphor.
 o There are a couple of hardcoded -styles that a purist might want to css-ify.
   They don't bother me...much.
@@ -42,7 +42,7 @@ o It would be nice if plugins requiring schedules had an easy way to add themsel
 # **SCHEDULE**
 # Schedule for Foobaz database cleaning service.  Recommended at least twice a week
 # even on minimally-used systems.
-\$TWiki::cfg{Plugins}{FoobazSchedule} = '3 13 * * Sun,Wed 0';
+\$Foswiki::cfg{Plugins}{FoobazSchedule} = '3 13 * * Sun,Wed 0';
 EOF
 
 =cut
