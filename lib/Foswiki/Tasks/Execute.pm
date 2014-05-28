@@ -1201,6 +1201,7 @@ sub _deliverOutput {
 To: $mailto
 From: "$TWiki::cfg{WebMasterName}" <$TWiki::cfg{WebMasterEmail}>
 Subject: TWiki execution of $task->{name}
+Auto-Submitted: auto-generated
 HEADERS
 
     # Autodetect MIME headers in case a task produces formatted mail
